@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<model-list missing-primary-key="缺少id参数" post-data-error="请求的数据不正确" query-parameter-error="查询的数据未找到">
+    <model nick="account" table-name="account_table" read="admin" write="admin">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="name" type="string"/>
+            <field name="password" type="string"/>
+            <field name="mobile" type="string"/>
+            <field name="email" type="string"/>
+            <field name="parent_id" type="string"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="name" message="用户名不能为空"/>
+            <length-validate for="save" name="name" max-length="18" message="用户名不能大于{max-length}个字符"/>
+
+            <nil-validate for="save" name="mobile" message="手机号码不能为空"/>
+            <regex-validate for="save" name="mobile" regex="^1[3,4,5,8,9]" message="手机号码格式不正确"/>
+
+            <nil-validate for="save" name="password" message="密码不能为空"/>
+            <regex-validate for="save" name="password" regex="^[a-zA-Z0-9._~!@#$^&amp;*]{6,32}"
+                            message="密码必须由字母、数字及特殊字符组成"/>
+            <regex-validate for="save" name="password" regex="[a-z]+" message="密码至少包含一个小写字母"/>
+            <regex-validate for="save" name="password" regex="[A-Z]+" message="密码至少包含一个大写字母"/>
+            <regex-validate for="save" name="password" regex="[._~!@#$^&amp;*]+"
+                            message="密码至少包含一个特殊符号(._~!@#$^&amp;*)"/>
+            <regex-validate for="save" name="email"
+                            regex="^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+){0,4}@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+){0,4}$"
+                            message="E-mail格式不正确"/>
+            <exist-validate for="save" message="手机号已经注册">
+                <validate-field name="mobile"/>
+            </exist-validate>
+            <not-exist-validate for="save" message="指定的父账号不存在">
+                <validate-field name="parent_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+            <data-revise for="save,query-param" name="password" method="md5"/>
+            <data-shield for="query" name="password"/>
+        </data-operation>
+    </model>
+
+    <model nick="token" table-name="token_table" read="user" write="sys">
+        <field-list>
+            <field name="account_id" type="string" target-model="account" target-field="id" primary-key="true"/>
+            <field name="token" type="string" create="md5"/>
+        </field-list>
+        <data-validate>
+            <not-exist-validate for="query" message="指定的Token不存在">
+                <validate-field name="token"/>
+            </not-exist-validate>
+        </data-validate>
+    </model>
+
+    <model nick="admin" table-name="admin_table" read="admin" write="admin">
+        <field-list>
+            <field name="account_id" type="string" target-model="account" target-field="id" primary-key="true"/>
+        </field-list>
+    </model>
+
+    <model nick="trade" read="user" write="admin" order-by="title" order-by-type="asc">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="parent_id" type="string"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="行业标题不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="行业标题不能大于{max-length}个字符"/>
+            <exist-validate for="save" message="存在相同的行业">
+                <validate-field name="title"/>
+                <validate-field name="parent_id"/>
+            </exist-validate>
+        </data-validate>
+    </model>
+
+    <model nick="robot" table-name="corpus_robot" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="expand" type="string"/>
+            <field name="trade_id" type="string" target-model="trade" target-field="id"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="机器人标题不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="机器人标题不能大于{max-length}个字符"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <length-validate for="save" name="expand" max-length="256" message="扩展信息不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="trade" message="指定的行业不存在">
+                <validate-field name="trade_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+            <data-padding for="query" name="cache_update_time" method="redis" param="robot-update-{id}"/>
+        </data-operation>
+    </model>
+
+    <model nick="main-flow" table-name="dialog_main_flow" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="content" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="initiative" type="bool"/>
+            <field name="trade_id" type="string" target-model="trade" target-field="id"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="机器人标题不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="流程标题不能大于{max-length}个字符"/>
+            <nil-validate for="save" name="content" message="流程内容不能为空"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="trade" message="指定的行业不存在">
+                <validate-field name="trade_id" target-field="id"/>
+            </not-exist-validate>
+            <exist-validate for="remove" target-model="robot-relation" message="存在使用该流程的机器人">
+                <validate-field name="id" target-field="content_id"/>
+            </exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+            <data-revise for="save" name="content" method="RemoveInvalidCorpus"/>
+        </data-operation>
+    </model>
+
+    <model nick="sub-flow" table-name="dialog_sub_flow" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="content" type="string"/>
+            <field name="main_id" type="string" target-model="main-flow" target-field="id"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="机器人标题不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="流程标题不能大于{max-length}个字符"/>
+            <nil-validate for="save" name="content" message="流程内容不能为空"/>
+            <length-validate for="save" name="trade_id" max-length="32" message="行业ID不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="main-flow" message="指定的主流程不存在">
+                <validate-field name="main_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+            <data-revise for="save" name="content" method="RemoveInvalidCorpus"/>
+        </data-operation>
+    </model>
+
+    <model nick="flow-component" table-name="flow_component" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="content" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="state" type="int"/><!--状态：0 模板， 1 控件原型， 2 控件复制体-->
+            <field name="trade_id" type="string" target-model="trade" target-field="id"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="机器人标题不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="流程标题不能大于{max-length}个字符"/>
+            <nil-validate for="save" name="content" message="流程内容不能为空"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="trade" message="指定的行业不存在">
+                <validate-field name="trade_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+            <data-revise for="save" name="content" method="RemoveInvalidCorpus"/>
+        </data-operation>
+    </model>
+
+    <model nick="condition-corpus" table-name="condition_corpus" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="keywords" type="string"/>
+            <field name="owner_id" type="string"/>
+            <field name="from_flow" type="bool"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="keywords" message="关键词不能为空"/>
+            <not-exist-validate for="save" target-model="main-flow" message="指定的流程不存在" condition-field="owner_id"
+                                condition-value="true">
+                <validate-field name="owner_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="component" message="指定的组件不存在" condition-field="owner_id"
+                                condition-value="false">
+                <validate-field name="owner_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="output-corpus" table-name="output_corpus" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="sentences" type="string"/>
+            <field name="expand" type="string"/>
+            <field name="command" type="string"/>
+            <field name="output_type" type="int"/> <!-- 0为随机输出，1为顺序输出，2为全部输出 -->
+            <field name="breakable" type="bool"/>
+            <field name="owner_id" type="string"/>
+            <field name="from_flow" type="bool"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="sentences" message="输出内容不能为空"/>
+            <not-exist-validate for="save" target-model="main-flow" message="指定的流程不存在" condition-field="owner_id"
+                                condition-value="true">
+                <validate-field name="owner_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="component" message="指定的组件不存在" condition-field="owner_id"
+                                condition-value="false">
+                <validate-field name="owner_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="knowledge-base" table-name="knowledge_base" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="trade_id" type="string" target-model="trade" target-field="id"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="知识库标题不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="知识库标题不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="trade" message="指定的行业不存在">
+                <validate-field name="trade_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="topic" table-name="corpus_topic" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="parent_id" type="string"/>
+            <field name="knowledge_base_id" type="string" target-model="knowledge-base" target-field="id"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="话题内容不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="话题内容不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" message="指定的父话题不存在">
+                <validate-field name="parent_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="knowledge-base" message="指定的知识库不存在">
+                <validate-field name="knowledge_base_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="interactive-corpus" table-name="interactive_corpus" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="inputs" type="string"/>
+            <field name="outputs" type="string"/>
+            <field name="label" type="string"/>
+            <field name="expand" type="string"/>
+            <field name="command" type="string"/>
+            <field name="output_type" type="int"/> <!-- 0为随机输出，1为顺序输出，2为全部输出 -->
+            <field name="breakable" type="bool"/>
+            <field name="comment" type="string"/>
+            <field name="topic_id" type="string" target-model="topic" target-field="id"/>
+            <field name="knowledge_base_id" type="string" target-model="knowledge-base" target-field="id"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="inputs" message="输入内容不能为空"/>
+            <nil-validate for="save" name="outputs" message="输出内容不能为空"/>
+            <length-validate for="save" name="comment" max-length="1024" message="解释说明不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="topic" message="指定的话题不存在">
+                <validate-field name="topic_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="knowledge-base" message="指定的知识库不存在">
+                <validate-field name="knowledge_base_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="label-group" table-name="label_group" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="标题内容不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="标题内容不能大于{max-length}个字符"/>
+            <nil-validate for="save" name="outputs" message="输出内容不能为空"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <exist-validate for="remove" target-model="robot-relation" message="存在使用该标签组的机器人">
+                <validate-field name="id" target-field="content_id"/>
+            </exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="label-map" table-name="label_map" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="content" type="string"/>
+            <field name="type" type="int"/><!--0表示用户标签，1表示语义标签-->
+            <field name="group_id" type="string"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+            <data-exchange for="query,save" name="content" condition-field="type" condition-value="0">
+                <![CDATA[
+                    {"user_label": "", "flow_label": [{"node_label": "", "time": 0}], "level": 0}
+                ]]>
+            </data-exchange>
+            <data-exchange for="query,save" name="content" condition-field="type" condition-value="1">
+                <![CDATA[
+                    {"semanteme_label": "", "key_word": ""}
+                ]]>
+            </data-exchange>
+        </data-operation>
+        <data-validate>
+            <nil-validate for="save" name="user_label" message="用户标签不能为空"/>
+            <nil-validate for="save" name="flow_label" message="流程标签不能为空"/>
+            <length-validate for="save" name="flow_label" min-length="1" message="流程标签至少要有一个"/>
+            <not-exist-validate for="save" target-model="topic" message="指定的话题不存在">
+                <validate-field name="topic_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+    </model>
+
+    <model nick="test-obj" table-name="flow_test_table" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="content" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="flag" type="int"/>
+            <field name="robot_id" type="string"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="用户标签不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="流程标题不能大于{max-length}个字符"/>
+            <nil-validate for="save" name="content" message="流程标签不能为空"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="robot" message="指定的机器人不存在">
+                <validate-field name="robot_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+    </model>
+
+    <model nick="variable-info" table-name="variable_info" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="name" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="name" message="变量信息名称不能为空"/>
+            <length-validate for="save" name="name" max-length="32" message="变量信息名称不能大于{max-length}个字符"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <exist-validate for="remove" target-model="robot-relation" message="存在使用该变量信息的机器人">
+                <validate-field name="id" target-field="content_id"/>
+            </exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="variable-record" table-name="variable_record" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="variable" type="string"/>
+            <field name="value" type="string"/>
+            <field name="info_id" type="string"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="variable" message="变量名不能为空"/>
+            <length-validate for="save" name="variable" max-length="32" message="变量名不能大于{max-length}个字符"/>
+            <nil-validate for="save" name="value" message="变量值不能为空"/>
+            <length-validate for="save" name="value" max-length="1024" message="变量值不能大于{max-length}个字符"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="variable-info" message="指定的变量信息不存在">
+                <validate-field name="info_id" target-field="id"/>
+            </not-exist-validate>
+            <exist-validate for="save" message="存在相同的变量名">
+                <validate-field name="variable"/>
+                <validate-field name="info_id"/>
+            </exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="robot-relation" table-name="robot_relation" read="user" write="user">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="robot_id" type="string"/>
+            <field name="content_id" type="string"/>
+            <field name="relation_type" type="int"/> <!--0表示变量，1表示流程，2表示知识库，3表示标签组-->
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <not-exist-validate for="save" target-model="robot" message="指定的机器人不存在">
+                <validate-field name="robot_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="variable-info" message="指定的变量信息不存在"
+                                condition-field="relation_type"
+                                condition-value="0">
+                <validate-field name="content_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="main-flow" message="指定的流程不存在" condition-field="relation_type"
+                                condition-value="1">
+                <validate-field name="content_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="knowledge-base" message="指定的知识库不存在"
+                                condition-field="relation_type"
+                                condition-value="2">
+                <validate-field name="content_id" target-field="id"/>
+            </not-exist-validate>
+            <not-exist-validate for="save" target-model="label-group" message="指定的标签组不存在"
+                                condition-field="relation_type"
+                                condition-value="3">
+                <validate-field name="content_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <!--==============================================================================-->
+
+    <model nick="vec-service-map" table-name="vec_service_map" read="admin" write="admin">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="url_link" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="trade_id" type="string" target-model="trade" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="url_link" message="URL链接不能为空"/>
+            <length-validate for="save" name="url_link" max-length="128" message="URL链接不能大于{max-length}个字符"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+            <not-exist-validate for="save" target-model="trade" message="指定的行业不存在">
+                <validate-field name="trade_id" target-field="id"/>
+            </not-exist-validate>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="market" read="admin" write="admin">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="title" type="string"/>
+            <field name="comment" type="string"/>
+            <field name="object_id" type="string"/>
+            <field name="trade_id" type="string" target-model="trade" target-field="id"/>
+            <field name="type" type="string"/> <!--type为0代表流程，为1代表组件-->
+            <field name="owner_id" type="string"/>
+            <field name="publisher" type="string"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-validate>
+            <nil-validate for="save" name="title" message="标题内容不能为空"/>
+            <length-validate for="save" name="title" max-length="128" message="标题内容不能大于{max-length}个字符"/>
+            <length-validate for="save" name="comment" max-length="256" message="解释说明不能大于{max-length}个字符"/>
+        </data-validate>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+
+    <model nick="game-record" table-name="game_record" read="admin" write="admin">
+        <field-list>
+            <field name="id" type="string" primary-key="true" create="md5"/>
+            <field name="content" type="string"/>
+            <field name="user_id" type="string"/>
+            <field name="robot_id" type="string"/>
+            <field name="account_id" type="string" target-model="account" target-field="id"/>
+            <field name="create_timestamp" type="timestamp"/>
+        </field-list>
+        <data-operation>
+            <data-revise for="query" name="create_timestamp" method="timestamp"/>
+        </data-operation>
+    </model>
+</model-list>

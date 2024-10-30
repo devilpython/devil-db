@@ -1,0 +1,7 @@
+{
+  "redisServer": "127.0.0.1",
+  "redisPort": 6379,
+  "redisPassword": "MyAicyber201415926!",
+  "dbServerUri": "root:daiwei198229@tcp(localhost:3306)/flow_ai?charset=utf8",
+  "serverPort": 9292
+}

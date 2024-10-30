@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<account-manager>
+    <account-model id-field="mobile" password-field="password" ticket-timeout="14400">
+        <data-validate>
+            <nil-validate for="query" name="mobile" message="手机号码不能为空"/>
+            <nil-validate for="query" name="password" message="密码不能为空"/>
+        </data-validate>
+    </account-model>
+</account-manager>
